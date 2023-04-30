@@ -1,0 +1,157 @@
+/* Include header files */
+#include "driverlib.h"
+#include "mechrev.h"
+
+/* Define macros and function prototypes  */
+#define LEDR_PIN            GPIO_PORT_P2,GPIO_PIN0
+#define LEDG_PIN            GPIO_PORT_P2,GPIO_PIN1
+#define LEDB_PIN            GPIO_PORT_P2,GPIO_PIN2
+
+/* Define configuration structs  */
+Timer_A_PWMConfig pwmConfig =
+{
+  TIMER_A_CLOCKSOURCE_SMCLK,
+  TIMER_A_CLOCKSOURCE_DIVIDER_1,
+  3000,                             // Period of PWM signal
+  TIMER_A_CAPTURECOMPARE_REGISTER_1,           // Use CCR1 for PWM channel 1
+  TIMER_A_OUTPUTMODE_RESET_SET,
+  0
+};
+
+/* Declare global variables  */
+int counter1 = 0;
+int counter2 = 0;
+
+/* Main program */
+void main(void)
+{
+    /* Stop Watchdog Timer */
+    WDT_A_holdTimer();
+
+    /* Call the mechrev_setup function included in the mechrev.h header file */
+    mechrev_setup();
+
+    /* Initialize GPIOs P1.1 and P1.4 for PushButtons (S1 and S2 switches) */
+    MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P1, GPIO_PIN1);
+    MAP_GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P1, GPIO_PIN4);
+
+    /* Initialize GPIOs P1.6 and P1.7 for Motor Driver IC Enable Pins */
+    MAP_GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN6);
+    MAP_GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN7);
+    MAP_GPIO_setAsOutputPin(LEDR_PIN);
+    MAP_GPIO_setAsOutputPin(LEDG_PIN);
+    MAP_GPIO_setAsOutputPin(LEDB_PIN);
+
+    MAP_GPIO_setOutputLowOnPin(LEDR_PIN);
+    MAP_GPIO_setOutputLowOnPin(LEDG_PIN);
+    MAP_GPIO_setOutputLowOnPin(LEDB_PIN);
+
+    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN6);
+    MAP_GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN7);
+
+    /* Initialize GPIOs P2.4, P2.5, P2.6 and P2.7 for PWM functionality  */
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN4, GPIO_PRIMARY_MODULE_FUNCTION);
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN6, GPIO_PRIMARY_MODULE_FUNCTION);
+    MAP_GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P2, GPIO_PIN7, GPIO_PRIMARY_MODULE_FUNCTION);
+
+    /* Initialize Timer A0 to generate PWM signals
+    Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig);*/
+
+    Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig);
+
+    pwmConfig.compareRegister = TIMER_A_CAPTURECOMPARE_REGISTER_2;  // Use CCR2 for PWM channel 2
+    Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig);
+
+    pwmConfig.compareRegister = TIMER_A_CAPTURECOMPARE_REGISTER_3;  // Use CCR3 for PWM channel 3
+    Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig);
+
+    pwmConfig.compareRegister = TIMER_A_CAPTURECOMPARE_REGISTER_4;  // Use CCR4 for PWM channel 4
+    Timer_A_generatePWM(TIMER_A0_BASE, &pwmConfig);
+
+    TA0CCR1 = 0;
+    TA0CCR2 = 0;
+    TA0CCR3 = 0;
+    TA0CCR4 = 0;
+
+    /* Declare local variables if needed */
+    int i;
+
+    while(1)
+    {
+
+        /* Design a Polling process to detect PushButtons press and adjust the PWM duty cycles accordingly */
+        // Configure PWM for Switch P1.1
+        if (MAP_GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN1)== GPIO_INPUT_PIN_LOW)
+        {
+            counter1++;
+            if (counter1 % 3 == 1)
+            {
+                MAP_GPIO_setOutputHighOnPin(LEDR_PIN);
+                TA0CCR1 = 1000;
+                TA0CCR2 = 0;
+                TA0CCR3 = 1000;
+                TA0CCR4 = 0;
+            }
+            else if (counter1 % 3 == 2)
+            {
+                MAP_GPIO_setOutputHighOnPin(LEDG_PIN);
+                TA0CCR1 = 2000;
+                TA0CCR2 = 0;
+                TA0CCR3 = 2000;
+                TA0CCR4 = 0;
+            }
+            else if (counter1 % 3 == 0 && counter1 > 0)
+            {
+                MAP_GPIO_setOutputHighOnPin(LEDB_PIN);
+                TA0CCR1 = 3000;
+                TA0CCR2 = 0;
+                TA0CCR3 = 3000;
+                TA0CCR4 = 0;
+            }
+        }
+
+        // Configure PWM for Switch P1.4
+        else if(MAP_GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN4) == GPIO_INPUT_PIN_LOW)
+        {
+            counter2 ++;
+            if (counter2 % 3 == 1)
+                   {
+                       MAP_GPIO_setOutputHighOnPin(LEDR_PIN);
+                       TA0CCR1 = 0;
+                       TA0CCR2 = 1000;
+                       TA0CCR3 = 0;
+                       TA0CCR4 = 1000;
+                   }
+             else if (counter2 % 3 == 2)
+                   {
+                       MAP_GPIO_setOutputHighOnPin(LEDG_PIN);
+                       TA0CCR1 = 0;
+                       TA0CCR2 = 2000;
+                       TA0CCR3 = 0;
+                       TA0CCR4 = 2000;
+                   }
+             else if (counter2 % 3 == 0 && counter2 > 0)
+                   {
+                       MAP_GPIO_setOutputHighOnPin(LEDB_PIN);
+                       TA0CCR1 = 0;
+                       TA0CCR2 = 3000;
+                       TA0CCR3 = 0;
+                       TA0CCR4 = 3000;
+                   }
+        }
+        else
+        {
+            MAP_GPIO_setOutputLowOnPin(LEDR_PIN);
+            MAP_GPIO_setOutputLowOnPin(LEDG_PIN);
+            MAP_GPIO_setOutputLowOnPin(LEDB_PIN);
+            TA0CCR1 = 0;
+            TA0CCR2 = 0;
+            TA0CCR3 = 0;
+            TA0CCR4 = 0;
+        }
+        for(i = 0; i<10000;i++); //switch debouncing
+        while (MAP_GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN1)== GPIO_INPUT_PIN_LOW || MAP_GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN4)== GPIO_INPUT_PIN_LOW);
+
+    }
+}
